@@ -1,0 +1,6 @@
+{
+  "name": "UniRoom UNIMUS",
+  "description": "Sistem Peminjaman Ruang UNIMUS - Memudahkan mahasiswa mencari ruangan dan pimpinan melakukan validasi penugasan/peminjaman.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
