@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { apiRequest } from '../services/api';
+import { api } from '../services/api';
 import { Gedung } from '../types';
 import { PlusCircle, Edit3, Trash2, MapPin, Building2, Search, X, Check, Eye, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -21,7 +21,7 @@ export default function MasterGedung() {
   const fetchGedungs = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest<Gedung[]>('/gedung');
+      const data = await api.get('/gedung');
       setGedungs(data);
     } catch (err: any) {
       setError(err.message || 'Gagal memuat daftar gedung.');
@@ -63,25 +63,17 @@ export default function MasterGedung() {
 
     try {
       if (editingId) {
-        // Edit Mode
-        await apiRequest<Gedung>(`/gedung/${editingId}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            kode: formKode.trim(),
-            nama: formNama.trim(),
-            lokasi: formLokasi.trim()
-          })
+        await api.put(`/gedung/${editingId}`, {
+          kode: formKode.trim(),
+          nama: formNama.trim(),
+          lokasi: formLokasi.trim()
         });
         setSuccess('Gedung berhasil diperbarui!');
       } else {
-        // Add Mode
-        await apiRequest<Gedung>('/gedung', {
-          method: 'POST',
-          body: JSON.stringify({
-            kode: formKode.trim(),
-            nama: formNama.trim(),
-            lokasi: formLokasi.trim()
-          })
+        await api.post('/gedung', {
+          kode: formKode.trim(),
+          nama: formNama.trim(),
+          lokasi: formLokasi.trim()
         });
         setSuccess('Gedung baru berhasil ditambahkan!');
       }
@@ -89,7 +81,6 @@ export default function MasterGedung() {
       setShowModal(false);
       fetchGedungs();
       
-      // Auto clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.message || 'Gagal menyimpan data gedung.');
@@ -104,7 +95,7 @@ export default function MasterGedung() {
     try {
       setError('');
       setSuccess('');
-      const res = await apiRequest(`/gedung/${id}`, { method: 'DELETE' });
+      const res = await api.delete(`/gedung/${id}`);
       setSuccess(res.message || 'Gedung berhasil dihapus!');
       fetchGedungs();
       setTimeout(() => setSuccess(''), 3000);

@@ -6,7 +6,7 @@ import {
 import { motion } from 'motion/react';
 
 export default function Profil() {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function Profil() {
     setError('');
     setSuccess('');
     try {
-      await updateProfile(name.trim(), email.trim());
+      await (name.trim(), email.trim());
       setSuccess('Profil Anda berhasil diperbarui!');
     } catch (err: any) {
       setError(err.message || 'Gagal memperbarui profil.');

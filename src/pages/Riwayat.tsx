@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { apiRequest } from '../services/api';
+import { api } from '../services/api';
 import { Booking } from '../types';
 import { Calendar, Clock, HelpCircle, AlertOctagon, CheckCircle2, RotateCcw, Building2, Activity, ClipboardList, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,7 +14,7 @@ export default function Riwayat() {
   const loadBookings = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest<Booking[]>('/booking/user');
+      const data = await api.get('/booking/user');
       setBookings(data);
     } catch (err) {
       console.error('Failed to load user bookings', err);

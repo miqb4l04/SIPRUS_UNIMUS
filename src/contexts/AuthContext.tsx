@@ -1,111 +1,153 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { api } from '../services/api';
 import { User } from '../types';
-import { apiRequest } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
-  loginAsGuest: () => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  updateProfile: (name: string, email: string) => Promise<void>;
+  loading: boolean;
+  error: string | null;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function checkLoggedIn() {
-      const token = localStorage.getItem('token');
-      const savedUser = localStorage.getItem('user');
+  // Fungsi untuk memuat data user dari token yang ada
+  const loadUserFromToken = async (token: string) => {
+    try {
+      // Simpan token dulu agar bisa dipakai untuk request
+      localStorage.setItem('token', token);
       
-      if (token && savedUser) {
-        if (token === 'guest-token-session') {
-          setUser(JSON.parse(savedUser));
-        } else {
+      // Ambil data user dari endpoint /me
+      const response = await api.get('/auth/me');
+      
+      if (response && response.user) {
+        setUser(response.user);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      console.error('Gagal memuat data user:', error);
+      // Jika token tidak valid, hapus token
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return false;
+    }
+  };
+
+  // Inisialisasi auth saat aplikasi pertama kali jalan
+  useEffect(() => {
+    const initAuth = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const token = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
+
+        // Jika ada storedUser, tampilkan dulu (agar tidak kedip loading)
+        if (storedUser) {
           try {
-            const res = await apiRequest('/auth/me');
-            if (res.user) {
-              setUser(res.user);
-              localStorage.setItem('user', JSON.stringify(res.user));
-            } else {
-              logout();
-            }
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
           } catch (e) {
-            // Token expired or invalid
-            logout();
+            console.error("Gagal membaca data user lokal", e);
           }
         }
+
+        // Verifikasi token ke server
+        if (token) {
+          try {
+            const response = await api.get('/auth/me');
+            if (response && response.user) {
+              setUser(response.user);
+              localStorage.setItem('user', JSON.stringify(response.user));
+            }
+          } catch (error: any) {
+            console.warn("Verifikasi token gagal:", error);
+            // Jika error 401, hapus token dan user
+            if (error?.message?.includes('401') || error?.message?.toLowerCase().includes('unauthorized')) {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              setUser(null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in initAuth:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }
-    checkLoggedIn();
+    };
+
+    initAuth();
   }, []);
 
-  const login = async (email: string, password: string): Promise<User> => {
-    const res = await apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res.user));
-    setUser(res.user);
-    return res.user;
+  // FUNGSI LOGIN - DIPERBAIKI
+  const login = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Panggil endpoint login
+      const response = await api.post('/auth/login', { email, password });
+      
+      // Pastikan response mengandung token dan user
+      if (!response.token) {
+        throw new Error('Response tidak mengandung token');
+      }
+      
+      if (!response.user) {
+        throw new Error('Response tidak mengandung data user');
+      }
+      
+      // Bersihkan token dari kutipan yang tidak perlu
+      const cleanToken = response.token.replace(/['"]+/g, '');
+      
+      // Simpan token dan user ke localStorage
+      localStorage.setItem('token', cleanToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Update state
+      setUser(response.user);
+      
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || 'Login gagal. Periksa email dan password Anda.');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loginAsGuest = () => {
-    const guestUser: User = {
-      id: 0,
-      email: 'guest@unimus.ac.id',
-      name: 'Pengunjung Umum (Guest)',
-      role: 'GUEST'
-    };
-    localStorage.setItem('token', 'guest-token-session');
-    localStorage.setItem('user', JSON.stringify(guestUser));
-    setUser(guestUser);
-  };
-
+  // FUNGSI LOGOUT
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-  };
-
-  const updateProfile = async (name: string, email: string): Promise<void> => {
-    const token = localStorage.getItem('token');
-    if (token === 'guest-token-session') {
-      const updatedGuest = { ...user!, name, email };
-      setUser(updatedGuest);
-      localStorage.setItem('user', JSON.stringify(updatedGuest));
-      return;
-    }
-
-    const res = await apiRequest('/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify({ name, email })
-    });
-
-    if (res.user) {
-      setUser(res.user);
-      localStorage.setItem('user', JSON.stringify(res.user));
-    }
+    setError(null);
+    // Redirect ke halaman login
+    window.location.href = '/login';
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginAsGuest, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, error }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
+
+// Hook untuk menggunakan auth context
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

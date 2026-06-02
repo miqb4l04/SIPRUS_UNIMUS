@@ -8,30 +8,50 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginAsGuest } = useAuth();
+  const { login, loading: authLoading } = useAuth(); // Hapus loginAsGuest karena tidak ada
 
-  const handleDemoFill = (selectedEmail: string) => {
+  // Perbaiki handler demo fill - gunakan password yang benar
+  const handleDemoFill = (selectedEmail: string, selectedPassword: string) => {
     setEmail(selectedEmail);
-    setPassword('123');
+    setPassword(selectedPassword);
     setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Form email dan password harus diisi.');
+    
+    // Validasi input
+    if (!email.trim()) {
+      setError('Email harus diisi.');
       return;
     }
+    if (!password.trim()) {
+      setError('Password harus diisi.');
+      return;
+    }
+    
     setError('');
     setLoading(true);
 
     try {
       await login(email, password);
+      // Login berhasil, redirect ke dashboard
+      window.location.href = '/';
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Login gagal. Email atau password tidak sesuai.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fungsi untuk guest mode - hanya bisa lihat, tidak bisa booking
+  const handleGuestMode = () => {
+    // Simpan flag guest mode
+    localStorage.setItem('guestMode', 'true');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
   };
 
   return (
@@ -141,12 +161,12 @@ export default function Login() {
             <motion.button
               whileTap={{ scale: 0.985 }}
               type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55"
+              disabled={loading || authLoading}
+              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
               id="btn-login-submit"
             >
-              {loading ? 'Menghubungkan...' : 'Masuk ke Aplikasi'}
-              {!loading && <ArrowRight className="w-4 h-4" />}
+              {loading || authLoading ? 'Menghubungkan...' : 'Masuk ke Aplikasi'}
+              {!(loading || authLoading) && <ArrowRight className="w-4 h-4" />}
             </motion.button>
 
             <div className="relative flex py-1 items-center">
@@ -158,7 +178,7 @@ export default function Login() {
             <motion.button
               whileTap={{ scale: 0.985 }}
               type="button"
-              onClick={loginAsGuest}
+              onClick={handleGuestMode}
               className="w-full py-3 px-4 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow"
               id="btn-guest-login"
             >
@@ -167,61 +187,64 @@ export default function Login() {
             </motion.button>
           </form>
 
-          {/* DEMO ACCOUNTS QUICK-PICK */}
+          {/* DEMO ACCOUNTS QUICK-PICK - PERBAIKI PASSWORD */}
           <div className="pt-6 border-t border-slate-100" id="demo-accounts-panel">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 text-center md:text-left flex items-center justify-center md:justify-start gap-1.5">
               <MonitorPlay className="w-4 h-4 text-slate-500" />
               Klik Akun Demo untuk Uji Coba Cepat
             </h4>
             <div className="grid grid-cols-1 gap-2.5">
+              {/* Akun Admin RT */}
               <motion.button
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.99 }}
                 type="button"
-                onClick={() => handleDemoFill('taufik@unimus.ac.id')}
-                className="p-3 text-left bg-blue-50/50 hover:bg-blue-50 border border-blue-100/60 hover:border-blue-200 rounded-xl transition-all flex items-center justify-between cursor-pointer group"
+                onClick={() => handleDemoFill('adminrt@unimus.ac.id', 'password')}
+                className="p-3 text-left bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/60 hover:border-indigo-200 rounded-xl transition-all flex items-center justify-between cursor-pointer group"
+                id="demo-admin-rt"
+              >
+                <div>
+                  <p className="text-xs font-bold text-indigo-900 group-hover:text-indigo-700">Admin Rumah Tangga (RT)</p>
+                  <p className="text-[10px] text-indigo-600 font-mono mt-0.5">adminrt@unimus.ac.id</p>
+                </div>
+                <UserCircle2 className="w-5 h-5 text-indigo-500" />
+              </motion.button>
+
+              {/* Akun Kepala RT */}
+              <motion.button
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.99 }}
+                type="button"
+                onClick={() => handleDemoFill('kepalart@unimus.ac.id', 'password')}
+                className="p-3 text-left bg-purple-50/50 hover:bg-purple-50 border border-purple-100/60 hover:border-purple-200 rounded-xl transition-all flex items-center justify-between cursor-pointer group"
+                id="demo-head-rt"
+              >
+                <div>
+                  <p className="text-xs font-bold text-purple-900 group-hover:text-purple-700">Kepala RT</p>
+                  <p className="text-[10px] text-purple-600 font-mono mt-0.5">kepalart@unimus.ac.id</p>
+                </div>
+                <UserCircle2 className="w-5 h-5 text-purple-500" />
+              </motion.button>
+
+              {/* Akun Mahasiswa */}
+              <motion.button
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.99 }}
+                type="button"
+                onClick={() => handleDemoFill('mahasiswa@unimus.ac.id', 'password')}
+                className="p-3 text-left bg-green-50/50 hover:bg-green-50 border border-green-100/60 hover:border-green-200 rounded-xl transition-all flex items-center justify-between cursor-pointer group"
                 id="demo-student"
               >
                 <div>
-                  <p className="text-xs font-bold text-blue-900 group-hover:text-blue-700">Mahasiswa (Taufik / Zulham)</p>
-                  <p className="text-[10px] text-blue-600 font-mono mt-0.5">taufik@unimus.ac.id</p>
+                  <p className="text-xs font-bold text-green-900 group-hover:text-green-700">Mahasiswa</p>
+                  <p className="text-[10px] text-green-600 font-mono mt-0.5">mahasiswa@unimus.ac.id</p>
                 </div>
-                <UserCircle2 className="w-5 h-5 text-blue-400" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.99 }}
-                type="button"
-                onClick={() => handleDemoFill('iqbal@unimus.ac.id')}
-                className="p-3 text-left bg-amber-50/50 hover:bg-amber-50 border border-amber-100/60 hover:border-amber-200 rounded-xl transition-all flex items-center justify-between cursor-pointer group"
-                id="demo-admin"
-              >
-                <div>
-                  <p className="text-xs font-bold text-amber-955 group-hover:text-amber-800">Admin Rumah Tangga (Iqbal)</p>
-                  <p className="text-[10px] text-amber-600 font-mono mt-0.5">iqbal@unimus.ac.id</p>
-                </div>
-                <UserCircle2 className="w-5 h-5 text-amber-500" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.99 }}
-                type="button"
-                onClick={() => handleDemoFill('avril@unimus.ac.id')}
-                className="p-3 text-left bg-purple-50/50 hover:bg-purple-50 border border-purple-100/60 hover:border-purple-200 rounded-xl transition-all flex items-center justify-between cursor-pointer group"
-                id="demo-head"
-              >
-                <div>
-                  <p className="text-xs font-bold text-purple-955 group-hover:text-purple-800">Siprus / Kepala RT (Avril)</p>
-                  <p className="text-[10px] text-purple-600 font-mono mt-0.5">avril@unimus.ac.id</p>
-                </div>
-                <UserCircle2 className="w-5 h-5 text-purple-500" />
+                <UserCircle2 className="w-5 h-5 text-green-500" />
               </motion.button>
             </div>
             
             <p className="text-[10px] text-slate-400 mt-3 text-center">
-              *Password default untuk semua akun demo adalah: <span className="font-bold underline">123</span>
+              *Password untuk semua akun demo adalah: <span className="font-bold underline">password</span>
             </p>
           </div>
         </motion.div>
